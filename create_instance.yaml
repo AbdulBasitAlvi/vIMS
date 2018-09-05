@@ -1,0 +1,73 @@
+heat_template_version: 2014-10-16
+ 
+description: Simple template to deploy a single compute instance
+ 
+parameters:
+  name:
+    type: string
+    label: Instance name or ID
+    description: Auto scaling to be used for compute instance
+    default: Auto_Instance
+  image:
+    type: string
+    label: Image name or ID
+    description: Image to be used for compute instance
+    default: TestVM
+  flavor:
+    type: string
+    label: Flavor
+    description: Type of instance (flavor) to be used
+    default: m1.small
+  public_net_id:
+    type: string
+    description: ID of public network
+    constraints:
+      - custom_constraint: neutron.network
+        description: Must be a valid network ID
+  private_net_id:
+    type: string
+    description: ID of private network
+    constraints:
+      - custom_constraint: neutron.network
+        description: Must be a valid network ID
+  base_security_group:
+    type: string
+    description: ID of base security group for all Clearwater nodes
+    default: IMS-base
+  homer_security_group:
+    type: string
+    description: ID of security group for Homer nodes
+    default: IMS-homer	
+resources:
+  port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      security_groups:
+        - { get_param: base_security_group }
+        - { get_param: homer_security_group }
+  floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: { get_param: public_net_id }
+      port_id: { get_resource: port }
+  my_instance:
+    type: OS::Nova::Server
+    properties:
+      name: { get_param: name}	
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      networks:
+        - port: { get_resource: port }        
+      user_data: |
+        #!/bin/sh
+        echo "Hello, World!"
+      user_data_format: RAW
+ 
+outputs:
+  instance_name:
+    description: Name of the instance
+    value: { get_param: name }
+  instance_ip:
+    description: IP address of the instance
+    value: { get_attr: [floating_ip, floating_ip_address] }

@@ -1,0 +1,4 @@
+Create vIMS 
+python /root/AB/IMS.py
+python /root/AB/user_create.py
+python /root/AB/Tester.py

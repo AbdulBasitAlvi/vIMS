@@ -1,0 +1,117 @@
+heat_template_version: 2014-10-16
+
+description: >
+  Clearwater Bono node
+
+parameters:
+  public_net_id:
+    type: string
+    description: ID of public network
+    constraints:
+      - custom_constraint: neutron.network
+        description: Must be a valid network ID
+  private_net_id:
+    type: string
+    description: ID of private network
+    constraints:
+      - custom_constraint: neutron.network
+        description: Must be a valid network ID
+  flavor:
+    type: string
+    description: Flavor to use
+    constraints:
+      - custom_constraint: nova.flavor
+        description: Must be a valid flavor name
+  availability_zone:
+    type: string
+    description: The Availability Zone to launch the instance.
+  image:
+    type: string
+    description: Name of image to use
+    constraints:
+      - custom_constraint: glance.image
+        description: Must be a valid image name
+  key_name:
+    type: string
+    description: Name of keypair to assign
+    constraints:
+      - custom_constraint: nova.keypair
+        description: Must be a valid keypair name
+  base_security_group:
+    type: string
+    description: ID of base security group for all Clearwater nodes
+  bono_security_group:
+    type: string
+    description: ID of security group for Bono nodes
+  repo_url:
+    type: string
+    description: URL for Clearwater repository
+    default: http://repo.cw-ngv.com/stable
+  zone:
+    type: string
+    description: DNS zone
+    default: example.com
+  dns_ip:
+    type: string
+    description: IP address for DNS server
+  dnssec_key:
+    type: string
+    description: DNSSEC private key (Base64-encoded)
+    constraints:
+      - allowed_pattern: "[0-9A-Za-z+/=]+"
+        description: Must be Base64-encoded
+  etcd_ip:
+    type: string
+    description: IP address of an existing member of the etcd cluster
+    default: ""
+  index:
+    type: number
+    description: Index of this Bono node in the Bono cluster
+    default: 0
+
+resources:
+  port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      security_groups:
+        - { get_param: base_security_group }
+        - { get_param: bono_security_group }
+
+  floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: { get_param: public_net_id }
+      port_id: { get_resource: port }
+
+  server:
+    type: OS::Nova::Server
+    properties:
+      name: { str_replace: { params: { __index__: { get_param: index }, __zone__: { get_param: zone } }, template: bono-__index__.__zone__ } }
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      availability_zone: { get_param: availability_zone}
+      networks:
+        - port: { get_resource: port }
+      user_data:
+        str_replace:
+          params:
+            __repo_url__: { get_param: repo_url }
+            __zone__: { get_param: zone }
+            __public_ip__: { get_attr: [ floating_ip, floating_ip_address ] }
+            __dns_ip__: { get_param: dns_ip }
+            __dnssec_key__: { get_param: dnssec_key }
+            __etcd_ip__ : { get_param: etcd_ip }
+            __index__ : { get_param: index }
+          template: |
+            #!/bin/bash  
+            sudo cp /home/ec2-user/.ssh/authorized_keys /root/.ssh/
+            sudo apt-get update
+outputs:
+  public_ip:
+    description: IP address in public network
+    value: { get_attr: [ floating_ip, floating_ip_address ] }
+  private_ip:
+    description: IP address in private network
+    value: { get_attr: [ server, first_address ] }

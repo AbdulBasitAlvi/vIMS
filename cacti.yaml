@@ -1,0 +1,100 @@
+heat_template_version: 2013-05-23
+
+description: >
+  Clearwater Stress Test node
+
+parameters:
+  name:
+    type: string
+    description: Name of Instance
+    default: Cacti
+  public_net_id:
+    type: string
+    description: ID of public network
+    constraints:
+      - custom_constraint: neutron.network
+        description: Must be a valid network ID
+  private_net_id:
+    type: string
+    description: ID of private network
+    constraints:
+      - custom_constraint: neutron.network
+        description: Must be a valid network ID
+  flavor:
+    type: string
+    description: Flavor to use
+    constraints:
+      - custom_constraint: nova.flavor
+        description: Must be a valid flavor name
+  image:
+    type: string
+    description: Name of image to use
+    constraints:
+      - custom_constraint: glance.image
+        description: Must be a valid image name
+  key_name:
+    type: string
+    description: Name of keypair to assign
+    constraints:
+      - custom_constraint: nova.keypair
+        description: Must be a valid keypair name
+  base_security_group:
+    type: string
+    description: ID of base security group for all Clearwater nodes
+    default: IMS-base
+  test_security_group:
+    type: string
+    description: ID of base security group for test nodes
+    default: IMS-ellis
+  repo_url:
+    type: string
+    description: URL for Clearwater repository
+    default: http://repo.cw-ngv.com/stable
+  zone:
+    type: string
+    description: DNS zone
+    default: example.com
+  index:
+    type: number
+    description: Index of this stress test node in test cluster
+    default: 0
+
+resources:
+  port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      security_groups:
+        - { get_param: base_security_group }
+        - { get_param: test_security_group }
+
+  floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: { get_param: public_net_id }
+      port_id: { get_resource: port }
+  server:
+    type: OS::Nova::Server
+    properties:
+      name: { get_param: name }
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      networks:
+        - port: { get_resource: port }
+      user_data:
+        str_replace:
+          params:
+            __zone__: { get_param: zone }
+            __public_ip__: { get_attr: [ floating_ip, floating_ip_address ] }
+          template: |
+            #!/bin/bash
+            cp /home/ec2-user/.ssh/authorized_keys /root/.ssh/
+            cp /home/ubuntu/.ssh/authorized_keys /root/.ssh/			
+outputs:
+  public_ip:
+    description: IP address in public network
+    value: { get_attr: [ floating_ip, floating_ip_address ] }
+  private_ip:
+    description: IP address in private network
+    value: { get_attr: [ server, first_address ] }

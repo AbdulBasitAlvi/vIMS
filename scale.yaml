@@ -1,0 +1,252 @@
+heat_template_version: 2013-05-23
+
+description: >
+  Clearwater deployment
+
+parameters:
+  public_net_id:
+    type: string
+    description: ID of public network
+    constraints:
+      - custom_constraint: neutron.network
+        description: Must be a valid network ID
+  private_net_id:
+    type: string
+    description: ID of private network
+    constraints:
+      - custom_constraint: neutron.network
+        description: Must be a valid network ID 
+  availability_zone:
+    type: string
+    description: The Availability Zone to launch the instance.            
+  flavor:
+    type: string
+    description: Flavor to use
+    constraints:
+      - custom_constraint: nova.flavor
+        description: Must be a valid flavor name
+  image:
+    type: string
+    description: Name of image to use
+    constraints:
+      - custom_constraint: glance.image
+        description: Must be a valid image name
+  key_name:
+    type: string
+    description: Name of keypair to assign
+    constraints:
+      - custom_constraint: nova.keypair
+        description: Must be a valid keypair name
+  repo_url:
+    type: string
+    description: URL for Clearwater repository
+    default: http://repo.cw-ngv.com/stable
+  zone:
+    type: string
+    description: DNS zone
+    default: example.com
+  bono_cluster_size:
+    type: number
+    description: Number of Bono nodes in Bono cluster
+    default: 1
+  sprout_cluster_size:
+    type: number
+    description: Number of Sprout nodes in Sprout cluster
+    default: 1
+  homestead_cluster_size:
+    type: number
+    description: Number of Homestead nodes in Homestead cluster
+    default: 1
+  ralf_cluster_size:
+    type: number
+    description: Number of Ralf nodes in Ralf cluster
+    default: 1
+  dnssec_key:
+    type: string
+    description: DNSSEC private key (Base64-encoded)
+    constraints:
+      - allowed_pattern: "[0-9A-Za-z+/=]+"
+        description: Must be Base64-encoded
+  index:
+    type: number
+    description: Index of clearwater nodes in deployment
+    default: 1        
+  etcd_ip:
+    type: string
+    description: IP address of an existing member of the etcd cluster
+    default: ""   
+  dns_ip:
+    type: string
+    description: IP address of DNS server
+    default: ""        
+  base_security_group:
+    type: string
+    description: ID of base security group for all Clearwater nodes
+    default: IMS-base
+  homestead_security_group:
+    type: string
+    description: ID of base security group for homestead nodes
+    default: IMS-homestead  
+  bono_security_group:
+    type: string
+    description: ID of base security group for bono nodes
+    default: IMS-bono 
+  ralf_security_group:
+    type: string
+    description: ID of base security group for ralf nodes
+    default: IMS-ralf    
+  sprout_security_group:
+    type: string
+    description: ID of base security group for sprout nodes
+    default: IMS-sprout
+  sprout2_security_group:
+    type: string
+    description: ID of base security group for sprout nodes
+    default: IMS-sprout2               
+resources:
+  bono:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: { get_param: bono_cluster_size }
+      index_var: "__index__"
+      resource_def:
+        type: bono.yaml
+        properties:
+          public_net_id: { get_param: public_net_id }
+          private_net_id: { get_param: private_net_id }
+          flavor: { get_param: flavor }
+          image: { get_param: image }
+          key_name: { get_param: key_name }
+          base_security_group: { get_param: base_security_group }
+          bono_security_group: { get_param: bono_security_group }
+          availability_zone: { get_param: availability_zone}
+          repo_url: { get_param: repo_url }
+          zone: { get_param: zone }
+          dns_ip: { get_param: dns_ip }
+          dnssec_key: { get_param: dnssec_key }
+          etcd_ip: { get_param: etcd_ip }
+          index: { get_param: index }
+  sprout:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: { get_param: sprout_cluster_size }
+      index_var: __index__
+      resource_def:
+        type: sprout.yaml
+        properties:
+          public_net_id: { get_param: public_net_id }
+          private_net_id: { get_param: private_net_id }
+          flavor: { get_param: flavor }
+          image: { get_param: image }
+          key_name: { get_param: key_name }
+          base_security_group: { get_param: base_security_group }
+          sprout_security_group: { get_param: sprout_security_group }
+          sprout2_security_group: { get_param: sprout2_security_group }
+          availability_zone: { get_param: availability_zone}
+          repo_url: { get_param: repo_url }
+          zone: { get_param: zone }
+          dns_ip: { get_param: dns_ip }
+          dnssec_key: { get_param: dnssec_key }
+          etcd_ip: { get_param: etcd_ip }
+          index: { get_param: index }
+  homestead:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: { get_param: homestead_cluster_size }
+      index_var: __index__
+      resource_def:
+        type: homestead.yaml
+        properties:
+          public_net_id: { get_param: public_net_id }
+          private_net_id: { get_param: private_net_id }
+          flavor: { get_param: flavor }
+          image: { get_param: image }
+          key_name: { get_param: key_name }
+          base_security_group: { get_param: base_security_group }
+          homestead_security_group: { get_param: homestead_security_group }
+          availability_zone: { get_param: availability_zone}
+          repo_url: { get_param: repo_url }
+          zone: { get_param: zone }
+          dns_ip: { get_param: dns_ip }
+          dnssec_key: { get_param: dnssec_key }
+          etcd_ip: { get_param: etcd_ip }
+          index: { get_param: index }
+  ralf:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: { get_param: ralf_cluster_size }
+      index_var: __index__
+      resource_def:
+        type: ralf.yaml
+        properties:
+          public_net_id: { get_param: public_net_id }
+          private_net_id: { get_param: private_net_id }
+          flavor: { get_param: flavor }
+          image: { get_param: image }
+          key_name: { get_param: key_name }
+          base_security_group: { get_param: base_security_group }
+          ralf_security_group: { get_param: ralf_security_group }
+          repo_url: { get_param: repo_url }
+          availability_zone: { get_param: availability_zone}
+          zone: { get_param: zone }
+          dns_ip: { get_param: dns_ip }
+          dnssec_key: { get_param: dnssec_key }
+          etcd_ip: { get_param: etcd_ip }
+          index: { get_param: index }
+  homer:
+    type: OS::Heat::ResourceGroup
+    properties:
+      index_var: __index__
+      resource_def:
+        type: homer.yaml
+        properties:
+          public_net_id: { get_param: public_net_id }
+          private_net_id: { get_param: private_net_id }
+          flavor: { get_param: flavor }
+          image: { get_param: image }
+          key_name: { get_param: key_name }
+          key_name: { get_param: key_name }
+          base_security_group: { get_param: base_security_group }
+          homer_security_group: { get_param: ralf_security_group }
+          repo_url: { get_param: repo_url }
+          zone: { get_param: zone }
+          dns_ip: { get_param: dns_ip }
+          availability_zone: { get_param: availability_zone}
+          dnssec_key: { get_param: dnssec_key }
+          etcd_ip: { get_param: etcd_ip }
+          index: { get_param: index }
+outputs:
+  zone:
+    description: DNS zone
+    value: { get_param: zone }
+  homestead_ip:
+    description: IP address of Homestead
+    value: { get_attr: [ homestead, public_ip] }
+  bono_ip:
+    description: IP address of Bono
+    value: { get_attr: [ bono, public_ip] }
+  sprout_ip:
+    description: IP address of Sprout
+    value: { get_attr: [ sprout, public_ip] }
+  ralf_ip:
+    description: IP address of Ralf
+    value: { get_attr: [ ralf, public_ip] }
+  homer_ip:
+    description: IP address of Homer
+    value: { get_attr: [ homer, public_ip] }
+
+  homer_ip_private:
+    description: private IP address of Homer
+    value: { get_attr: [ homer, private_ip] }
+  sprout_ip_private:
+    description: private IP address of Sprout
+    value: { get_attr: [ sprout, private_ip] }
+  ralf_ip_private:
+    description: private IP address of Ralf
+    value: { get_attr: [ ralf, private_ip] }
+  homestead_ip_private:
+    description: private IP address of Homestead
+    value: { get_attr: [ homestead, private_ip] }
+  bono_ip_private:
+    description: private IP address of Bono
+    value: { get_attr: [ bono, private_ip] }
